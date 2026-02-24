@@ -51,5 +51,5 @@ jobs:
 
       - name: Deploy to production (set image)
         run: |
-          kubectl -n "$NAMESPACE" set image deployment/frontend frontend="${IMAGE_URI}"
+          kubectl -n "$NAMESPACE" set image deployment/frontend server="${IMAGE_URI}"
           kubectl -n "$NAMESPACE" rollout status deployment/frontend
