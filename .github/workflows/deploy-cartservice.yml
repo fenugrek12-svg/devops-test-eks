@@ -16,10 +16,9 @@ jobs:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       ECR_REPO: cartservice
       CLUSTER_NAME: devops-test-eks
-      NAMESPACE: staging
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
@@ -32,11 +31,17 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image
+      - name: Build, tag and push image
         run: |
           IMAGE_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${GITHUB_SHA}"
-          docker build -t "$IMAGE_URI" -f ./src/cartservice/src/Dockerfile ./src/cartservice/src
+
+          docker build \
+            -t "$IMAGE_URI" \
+            -f ./src/cartservice/src/Dockerfile \
+            ./src/cartservice/src
+
           docker push "$IMAGE_URI"
+
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
       - name: Setup kubectl
@@ -46,9 +51,20 @@ jobs:
 
       - name: Update kubeconfig
         run: |
-          aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
+          aws eks update-kubeconfig \
+            --region "$AWS_REGION" \
+            --name "$CLUSTER_NAME"
 
-      - name: Deploy to staging (set image)
+      - name: Deploy to staging
         run: |
-          kubectl -n "$NAMESPACE" set image deployment/cartservice server="${IMAGE_URI}"
-          kubectl -n "$NAMESPACE" rollout status deployment/cartservice
+          kubectl -n staging set image deployment/cartservice \
+            server="${IMAGE_URI}"
+
+          kubectl -n staging rollout status deployment/cartservice
+
+      - name: Deploy to production
+        run: |
+          kubectl -n production set image deployment/cartservice \
+            server="${IMAGE_URI}"
+
+          kubectl -n production rollout status deployment/cartservice
